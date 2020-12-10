@@ -813,12 +813,20 @@ class BartModel(PretrainedBartModel):
             )
 #         print("DEC")
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
+        causal_mask = None
+        tgt_len = decoder_input_ids.shape[1]
+        if not use_cache:
+            tmp = fill_with_neg_inf(torch.zeros(tgt_len, tgt_len))
+            mask = torch.arange(tmp.size(-1))
+            tmp.masked_fill_(mask < (mask + 1).view(tmp.size(-1), 1), 0)
+            causal_mask = tmp.to(dtype=self.shared.weight.dtype, device=decoder_input_ids.device)
+        
         decoder_outputs = self.decoder(
             decoder_input_ids,
             encoder_outputs[0],
             decoder_attention_mask,
             decoder_padding_mask=None,
-            decoder_causal_mask=None,
+            decoder_causal_mask=causal_mask,
             past_key_values=past_key_values,
             use_cache=use_cache,
             output_attentions=output_attentions,

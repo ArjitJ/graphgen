@@ -66,7 +66,7 @@ class Args:
         # Specific to GraphRNN | DFScodeRNN
         self.num_layers = 4  # Layers of rnn
 
-        self.batch_size = 32  # normal: 32, and the rest should be changed accordingly
+        self.batch_size = 12  # normal: 32, and the rest should be changed accordingly
 
         # Specific to DGMG
         # Model parameters
@@ -95,7 +95,7 @@ class Args:
 
         # Model save and validate parameters
         self.save_model = True
-        self.epochs_save = 20
+        self.epochs_save = 5
         self.epochs_validate = 1
 
         # Time at which code is run

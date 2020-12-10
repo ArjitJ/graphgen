@@ -20,7 +20,7 @@ class ArgsEvaluate():
         self.device = torch.device(
             'cuda:0' if torch.cuda.is_available() else 'cpu')
 
-        self.model_path = 'model_save/DFScodeRNN_ENZYMES_2020-12-10 04:46:24/DFScodeRNN_ENZYMES_20.dat'
+        self.model_path = 'model_save/DFScodeRNN_ENZYMES_2020-12-10 07:10:04/DFScodeRNN_ENZYMES_10.dat'
 
 
         self.num_epochs = get_model_attribute(

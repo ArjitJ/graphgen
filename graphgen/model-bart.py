@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.init as init
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
-from .gpt2 import GPT2Model, GPT2Config
+from .transformer_model import *
 
 class MLP_Softmax(nn.Module):
     """
@@ -91,14 +91,19 @@ class RNN(nn.Module):
 
         self.input = nn.Linear(input_size, embedding_size)
 
-        self.rnn = GPT2Model(GPT2Config(n_positions=256,
-            n_ctx=256,
-            n_embd=96,
-            n_layer=4,
-            n_head=8,
-            layer_norm_epsilon=1e-5,
-            initializer_range=0.02))
+#         if self.rnn_type == 'GRU':
+#             self.rnn = nn.GRU(
+#                 input_size=embedding_size, hidden_size=hidden_size, num_layers=num_layers,
+#                 batch_first=True, dropout=dropout
+#             )
+#         elif self.rnn_type == 'LSTM':
+#             self.rnn = nn.LSTM(
+#                 input_size=embedding_size, hidden_size=hidden_size, num_layers=num_layers,
+#                 batch_first=True, dropout=dropout
+#             )
+        self.rnn = BartModel(BartConfig(decoder_attention_heads=8, num_hidden_layers=2, encoder_attention_heads=8, decoder_layers=4, encoder_layers=4, d_model=96, max_position_embeddings=256))
         self.rnn.cuda()
+        # self.relu = nn.ReLU()
 
         self.hidden = None  # Need initialization before forward run
 
@@ -110,31 +115,94 @@ class RNN(nn.Module):
                 self.output = MLP_Softmax(
                     hidden_size, output_embedding_size, self.output_size).cuda()
 
+#         for name, param in self.rnn.named_parameters():
+#             if 'bias' in name:
+#                 nn.init.constant_(param, 0.25)
+#             elif 'weight' in name:
+#                 nn.init.xavier_uniform_(
+#                     param, gain=nn.init.calculate_gain('sigmoid'))
+
+#         for m in self.modules():
+#             if isinstance(m, nn.Linear):
+#                 m.weight.data = init.xavier_uniform_(
+#                     m.weight.data, gain=nn.init.calculate_gain('relu'))
+
+#     def init_hidden(self, batch_size):
+#         if self.rnn_type == 'GRU':
+#             # h0
+#             return torch.zeros(self.num_layers, batch_size, self.hidden_size, device=self.device)
+#         elif self.rnn_type == 'LSTM':
+#             # (h0, c0)
+#             return (torch.zeros(self.num_layers, batch_size, self.hidden_size, device=self.device),
+#                     torch.zeros(self.num_layers, batch_size, self.hidden_size, device=self.device))
     def reset(self, batch_size):
         self.t = 0
-        self.start = torch.zeros(batch_size, 1, 96).cuda()
+        self.input_ids = torch.zeros((batch_size, 256, 96)).cuda()
+        self.attention_mask = torch.zeros((batch_size, 256)).cuda()
+        self.decoder_input_ids = torch.zeros((batch_size, 256, 96)).cuda()
+        self.decoder_attention_mask = torch.zeros((batch_size, 256)).cuda()
+        self.decoder_attention_mask[:, 0] = 1
+        self.attention_mask[:, 0] = 1
+        self.flag = False
+#         self.attention_mask[:, 1] = 1
+        self.encoder_outputs = None
+        self.past_key_values=None
+        
         
     def forward(self, input, input_len=None):
-        input = self.input(input)
-
+#         attention_mask = torch.zeros(input.shape[:-1]).cuda()
+#         attention_mask[:, 0] = 1
+        # input = self.relu(input)
         if input_len is not None:
-            output = None
+            input = torch.cat([torch.zeros((input.shape[0], 1, input.shape[-1])).cuda(), input], 1)
+            input = self.input(input.cuda())
+        
+            self.decoder_input_ids = self.decoder_input_ids[:, :1]
+            self.decoder_attention_mask = self.decoder_attention_mask[:, :input_len.max()+1]
+            outputs = torch.zeros((input.shape[0], input_len.max()+2, 96)).cuda()
+            attention_mask = torch.arange(input.shape[1]).view(1, -1).repeat(input.shape[0], 1).cuda() <= input_len.unsqueeze(1)
+            encoder_outputs=None
+            past_key_values=None
             for i in range(input_len.max()):
-                t = self.rnn(self.start)
-                if output is None:
-                    output = t
-                else:
-                    output = torch.cat([output, t], 1)
-                self.start = torch.cat([self.start, input[:, i:i+1]], 1)
-        else:
-            output = self.rnn(self.start)[:, -1:]
-            self.start = torch.cat([self.start, input], 1)
-#             print(output.shape, self.start.shape, input.shape)
+#                 print(self.decoder_input_ids.shape, self.decoder_attention_mask.shape)
+                tmp_out = self.rnn(input_ids=input, attention_mask = attention_mask, decoder_input_ids=self.decoder_input_ids.detach()[:, :1], decoder_attention_mask = self.attention_mask[:, :input_len.max()+1], encoder_outputs = encoder_outputs, past_key_values=past_key_values, use_cache=True)
+                output = tmp_out['last_hidden_state']
+                past_key_values = tmp_out['past_key_values']
+                if encoder_outputs is None:
+                    encoder_outputs = (tmp_out['encoder_last_hidden_state'], )
+#                 print(output.shape, self.decoder_input_ids.shape)
+                self.decoder_input_ids[:, :1] = output
+                outputs[:, self.t+1] = output.squeeze(1)
+                self.decoder_attention_mask[:, self.t+1] = 1
+                self.t += 1
+            if self.output_size is not None:
+                outputs = self.output(outputs)
+            return outputs[:, 1:input_len.max()+1]
+
+#         if self.t == 0:
+#             tmp_out = self.rnn(input_ids=self.input_ids, attention_mask = self.attention_mask, decoder_input_ids=self.decoder_input_ids, decoder_attention_mask = self.decoder_attention_mask, use_cache=False)
+#             output = tmp_out['last_hidden_state']
+#             self.decoder_input_ids[:, self.t] = output[:, self.t]
+#             self.decoder_attention_mask[:, self.t] = 1
+        input = self.input(input.cuda())
+        self.input_ids[:, self.t] = input.squeeze(1)
+        self.attention_mask[:, self.t] = 1
+        tmp_out = self.rnn(input_ids=self.input_ids, attention_mask = self.attention_mask, decoder_input_ids=self.decoder_input_ids[:, :self.t+1], decoder_attention_mask = self.attention_mask, use_cache=False)
+        output = tmp_out['last_hidden_state'][:, -1]
+#         self.past_key_values = tmp_out['past_key_values']
+#         if self.encoder_outputs is None:
+#             self.encoder_outputs = (tmp_out['encoder_last_hidden_state'], )
+        if self.t < self.decoder_input_ids.shape[1]:
+            self.decoder_input_ids[:, self.t+1] = output
+            self.decoder_attention_mask[:, self.t+1] = 1
+        self.t += 1
+#         self.past_key_values = tmp_out['past_key_values']
         
         if self.output_size is not None:
             output = self.output(output)
+#         print(output.max(), output.min(), self.t)
+        return output.unsqueeze(1)
 
-        return output
 
 def create_model(args, feature_map):
     max_nodes = feature_map['max_nodes']
