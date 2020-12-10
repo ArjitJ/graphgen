@@ -94,7 +94,7 @@ class RNN(nn.Module):
         self.rnn = GPT2Model(GPT2Config(n_positions=256,
             n_ctx=256,
             n_embd=96,
-            n_layer=4,
+            n_layer=6,
             n_head=8,
             layer_norm_epsilon=1e-5,
             initializer_range=0.02))
@@ -119,17 +119,11 @@ class RNN(nn.Module):
 
         if input_len is not None:
             output = None
-            for i in range(input_len.max()):
-                t = self.rnn(self.start)
-                if output is None:
-                    output = t
-                else:
-                    output = torch.cat([output, t], 1)
-                self.start = torch.cat([self.start, input[:, i:i+1]], 1)
+            self.start = torch.cat([self.start, input], 1)
+            output = self.rnn(self.start)[:, 1:]
         else:
             output = self.rnn(self.start)[:, -1:]
             self.start = torch.cat([self.start, input], 1)
-#             print(output.shape, self.start.shape, input.shape)
         
         if self.output_size is not None:
             output = self.output(output)

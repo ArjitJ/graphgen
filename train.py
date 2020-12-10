@@ -48,8 +48,8 @@ def train_epoch(
         for _, opt in optimizer.items():
             opt.step()
 
-#         for _, sched in scheduler.items():
-#             sched.step()
+        for _, sched in scheduler.items():
+            sched.step()
 
         if args.log_tensorboard:
             summary_writer.add_scalar('{} {} Loss/train batch'.format(

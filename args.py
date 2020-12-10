@@ -54,7 +54,7 @@ class Args:
         self.embedding_size_dfscode_rnn = 96  # input size for dfscode RNN
         # the size for vertex output embedding
         self.embedding_size_timestamp_output = 256
-        self.embedding_size_vertex_output = 256# the size for vertex output embedding
+        self.embedding_size_vertex_output = 256 # the size for vertex output embedding
         self.embedding_size_edge_output = 256  # the size for edge output embedding
         self.dfscode_rnn_dropout = 0.2  # Dropout layer in between RNN layers
         self.loss_type = 'BCE'
@@ -66,7 +66,7 @@ class Args:
         # Specific to GraphRNN | DFScodeRNN
         self.num_layers = 4  # Layers of rnn
 
-        self.batch_size = 12  # normal: 32, and the rest should be changed accordingly
+        self.batch_size = 64  # normal: 32, and the rest should be changed accordingly
 
         # Specific to DGMG
         # Model parameters
@@ -84,7 +84,7 @@ class Args:
         self.milestones = [100, 200, 400, 800]  # List of milestones
 
         # Whether to do gradient clipping
-        self.gradient_clipping = True
+        self.gradient_clipping = False # True
 
         # Output config
         self.dir_input = ''
