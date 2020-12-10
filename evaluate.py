@@ -20,7 +20,7 @@ class ArgsEvaluate():
         self.device = torch.device(
             'cuda:0' if torch.cuda.is_available() else 'cpu')
 
-        self.model_path = 'model_save/DFScodeRNN_ENZYMES_2020-12-10 01:32:39/DFScodeRNN_ENZYMES_60.dat'
+        self.model_path = 'model_save/DFScodeRNN_ENZYMES_2020-12-10 04:46:24/DFScodeRNN_ENZYMES_20.dat'
 
 
         self.num_epochs = get_model_attribute(
@@ -29,7 +29,7 @@ class ArgsEvaluate():
         # Whether to generate networkx format graphs for real datasets
         self.generate_graphs = True
 
-        self.count = 320
+        self.count = 32
         self.batch_size = 32  # Must be a factor of count
 
         self.metric_eval_batch_size = 32

@@ -142,7 +142,7 @@ class RNN(nn.Module):
         self.decoder_input_ids = torch.zeros((batch_size, 256, 96)).cuda()
         self.decoder_attention_mask = torch.zeros((batch_size, 256)).cuda()
         self.decoder_attention_mask[:, 0] = 1
-        self.attention_mask[:, 0] = 1
+#         self.attention_mask[:, 0] = 1
         self.flag = False
 #         self.attention_mask[:, 1] = 1
         self.past_key_values=None
@@ -154,15 +154,17 @@ class RNN(nn.Module):
         input = self.input(input.cuda())
         # input = self.relu(input)
         if input_len is not None:
+            input = torch.cat([torch.zeros((input.shape[0], 1, input.shape[-1])).cuda(), input], 1)
+        
             self.decoder_input_ids = self.decoder_input_ids[:, :input_len.max()+1]
             self.decoder_attention_mask = self.decoder_attention_mask[:, :input_len.max()+1]
             outputs = torch.zeros_like(self.decoder_input_ids).cuda()
-            attention_mask = torch.arange(input.shape[1]).view(1, -1).repeat(input.shape[0], 1).cuda() < input_len.unsqueeze(1)
+            attention_mask = torch.arange(input.shape[1]).view(1, -1).repeat(input.shape[0], 1).cuda() <= input_len.unsqueeze(1)
             encoder_outputs=None
             past_key_values=None
             for i in range(input_len.max()):
 #                 print(self.decoder_input_ids.shape, self.decoder_attention_mask.shape)
-                tmp_out = self.rnn(input_ids=input, attention_mask = attention_mask, decoder_input_ids=self.decoder_input_ids.detach()[:, :self.t+1], decoder_attention_mask = self.decoder_attention_mask[:, :input_len.max()], encoder_outputs = encoder_outputs, past_key_values=past_key_values, use_cache=True)
+                tmp_out = self.rnn(input_ids=input, attention_mask = attention_mask, decoder_input_ids=self.decoder_input_ids.detach()[:, :self.t+1], decoder_attention_mask = self.decoder_attention_mask[:, :input_len.max()+1], encoder_outputs = encoder_outputs, past_key_values=past_key_values, use_cache=True)
                 output = tmp_out['last_hidden_state']
                 past_key_values = tmp_out['past_key_values']
                 if encoder_outputs is None:
@@ -184,8 +186,8 @@ class RNN(nn.Module):
         
         self.input_ids[:, self.t] = input.squeeze(1)
         self.attention_mask[:, self.t] = 1
-        tmp_out = self.rnn(input_ids=self.input_ids, attention_mask = self.attention_mask, decoder_input_ids=self.decoder_input_ids, decoder_attention_mask = self.decoder_attention_mask, use_cache=False)
-        output = tmp_out['last_hidden_state'][:, self.t+1]
+        tmp_out = self.rnn(input_ids=self.input_ids, attention_mask = self.attention_mask, decoder_input_ids=self.decoder_input_ids[:, :self.t+1], decoder_attention_mask = self.decoder_attention_mask, use_cache=False)
+        output = tmp_out['last_hidden_state'][:, self.t]
         
         if self.t < self.decoder_input_ids.shape[1]:
             self.decoder_input_ids[:, self.t+1] = output
