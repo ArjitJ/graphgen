@@ -26,15 +26,15 @@ class Args:
 
         # Check datasets/process_dataset for datasets
         # Select dataset to train the model
-        self.graph_type = 'Lung'
+        self.graph_type = 'ENZYMES'
         self.num_graphs = None  # Set it None to take complete dataset
 
         # Whether to produce networkx format graphs for real datasets
-        self.produce_graphs = True
+        self.produce_graphs = False
         # Whether to produce min dfscode and write to files
-        self.produce_min_dfscodes = True
+        self.produce_min_dfscodes = False
         # Whether to map min dfscodes to tensors and save to files
-        self.produce_min_dfscode_tensors = True
+        self.produce_min_dfscode_tensors = False
 
         # if none, then auto calculate
         self.max_prev_node = None  # max previous node that looks back for GraphRNN
@@ -50,12 +50,12 @@ class Args:
 
         # Specific to DFScodeRNN
         # Model parameters
-        self.hidden_size_dfscode_rnn = 256  # hidden size for dfscode RNN
-        self.embedding_size_dfscode_rnn = 92  # input size for dfscode RNN
+        self.hidden_size_dfscode_rnn = 96  # hidden size for dfscode RNN
+        self.embedding_size_dfscode_rnn = 96  # input size for dfscode RNN
         # the size for vertex output embedding
-        self.embedding_size_timestamp_output = 512
-        self.embedding_size_vertex_output = 512  # the size for vertex output embedding
-        self.embedding_size_edge_output = 512  # the size for edge output embedding
+        self.embedding_size_timestamp_output = 256
+        self.embedding_size_vertex_output = 256# the size for vertex output embedding
+        self.embedding_size_edge_output = 256  # the size for edge output embedding
         self.dfscode_rnn_dropout = 0.2  # Dropout layer in between RNN layers
         self.loss_type = 'BCE'
         self.weights = False
@@ -78,7 +78,7 @@ class Args:
         self.num_workers = 8  # num workers to load data, default 4
         self.epochs = 10000
 
-        self.lr = 0.003  # Learning rate
+        self.lr = 0.0002  # Learning rate
         # Learning rate decay factor at each milestone (no. of epochs)
         self.gamma = 0.3
         self.milestones = [100, 200, 400, 800]  # List of milestones
@@ -114,7 +114,7 @@ class Args:
 
         # Model load parameters
         self.load_model = False
-        self.load_model_path = ''
+        self.load_model_path = 'model_save/DFScodeRNN_ENZYMES_2020-12-09 20:22:40/DFScodeRNN_ENZYMES_20.dat'
         self.load_device = torch.device('cuda:0')
         self.epochs_end = 10000
 

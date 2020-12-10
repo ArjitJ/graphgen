@@ -10,8 +10,6 @@ from dfscode.dfs_wrapper import graph_from_dfscode
 
 
 def evaluate_loss(args, model, data, feature_map):
-#     for i in model.keys():
-#         print(model[i].device)
     x_len_unsorted = data['len'].to(args.device)
     x_len_max = max(x_len_unsorted)
     batch_size = x_len_unsorted.size(0)
@@ -45,9 +43,9 @@ def evaluate_loss(args, model, data, feature_map):
     x_target = torch.cat((x_t1, x_t2, x_v1, x_e, x_v2), dim=2).float()
 
     # initialize dfs_code_rnn hidden according to batch size
-#     model['dfs_code_rnn'].hidden = model['dfs_code_rnn'].init_hidden(
-#         batch_size=batch_size)
-    model['dfs_code_rnn'].reset(batch_size)
+    model['dfs_code_rnn'].hidden = model['dfs_code_rnn'].init_hidden(
+        batch_size=batch_size)
+
     # Teacher forcing: Feed the target as the next input
     # Start token is all zeros
     dfscode_rnn_input = torch.cat(
@@ -132,9 +130,9 @@ def predict_graphs(eval_args):
 
     for _ in range(eval_args.count // eval_args.batch_size):
         # initialize dfs_code_rnn hidden according to batch size
-#         model['dfs_code_rnn'].hidden = model['dfs_code_rnn'].init_hidden(
-#             batch_size=eval_args.batch_size)
-        model['dfs_code_rnn'].reset(eval_args.batch_size)
+        model['dfs_code_rnn'].hidden = model['dfs_code_rnn'].init_hidden(
+            batch_size=eval_args.batch_size)
+
         rnn_input = torch.zeros(
             (eval_args.batch_size, 1, feature_len), device=eval_args.device)
         pred = torch.zeros(

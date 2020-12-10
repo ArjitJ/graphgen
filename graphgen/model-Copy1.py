@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.init as init
 from torch.nn.utils.rnn import pad_packed_sequence, pack_padded_sequence
-from .transformer_model import *
+
 
 class MLP_Softmax(nn.Module):
     """
@@ -14,7 +14,7 @@ class MLP_Softmax(nn.Module):
         self.mlp = nn.Sequential(
             MLP_Plain(input_size, embedding_size, output_size, dropout),
             nn.Softmax(dim=2)
-        ).cuda()
+        )
 
     def forward(self, input):
         return self.mlp(input)
@@ -30,7 +30,7 @@ class MLP_Log_Softmax(nn.Module):
         self.mlp = nn.Sequential(
             MLP_Plain(input_size, embedding_size, output_size, dropout),
             nn.LogSoftmax(dim=2)
-        ).cuda()
+        )
 
     def forward(self, input):
         return self.mlp(input)
@@ -51,7 +51,7 @@ class MLP_Plain(nn.Module):
             # nn.ReLU(),
             # nn.Dropout(p=dropout),
             nn.Linear(embedding_size, output_size),
-        ).cuda()
+        )
 
         for m in self.modules():
             if isinstance(m, nn.Linear):
@@ -91,18 +91,17 @@ class RNN(nn.Module):
 
         self.input = nn.Linear(input_size, embedding_size)
 
-#         if self.rnn_type == 'GRU':
-#             self.rnn = nn.GRU(
-#                 input_size=embedding_size, hidden_size=hidden_size, num_layers=num_layers,
-#                 batch_first=True, dropout=dropout
-#             )
-#         elif self.rnn_type == 'LSTM':
-#             self.rnn = nn.LSTM(
-#                 input_size=embedding_size, hidden_size=hidden_size, num_layers=num_layers,
-#                 batch_first=True, dropout=dropout
-#             )
-        self.rnn = BartModel(BartConfig(decoder_attention_heads=8, num_hidden_layers=2, encoder_attention_heads=8, decoder_layers=4, encoder_layers=4, d_model=96, max_position_embeddings=256))
-        self.rnn.cuda()
+        if self.rnn_type == 'GRU':
+            self.rnn = nn.GRU(
+                input_size=embedding_size, hidden_size=hidden_size, num_layers=num_layers,
+                batch_first=True, dropout=dropout
+            )
+        elif self.rnn_type == 'LSTM':
+            self.rnn = nn.LSTM(
+                input_size=embedding_size, hidden_size=hidden_size, num_layers=num_layers,
+                batch_first=True, dropout=dropout
+            )
+
         # self.relu = nn.ReLU()
 
         self.hidden = None  # Need initialization before forward run
@@ -110,77 +109,45 @@ class RNN(nn.Module):
         if self.output_size is not None:
             if output_embedding_size is None:
                 self.output = MLP_Softmax(
-                    hidden_size, embedding_size, self.output_size).cuda()
+                    hidden_size, embedding_size, self.output_size)
             else:
                 self.output = MLP_Softmax(
-                    hidden_size, output_embedding_size, self.output_size).cuda()
+                    hidden_size, output_embedding_size, self.output_size)
 
-#         for name, param in self.rnn.named_parameters():
-#             if 'bias' in name:
-#                 nn.init.constant_(param, 0.25)
-#             elif 'weight' in name:
-#                 nn.init.xavier_uniform_(
-#                     param, gain=nn.init.calculate_gain('sigmoid'))
+        for name, param in self.rnn.named_parameters():
+            if 'bias' in name:
+                nn.init.constant_(param, 0.25)
+            elif 'weight' in name:
+                nn.init.xavier_uniform_(
+                    param, gain=nn.init.calculate_gain('sigmoid'))
 
-#         for m in self.modules():
-#             if isinstance(m, nn.Linear):
-#                 m.weight.data = init.xavier_uniform_(
-#                     m.weight.data, gain=nn.init.calculate_gain('relu'))
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                m.weight.data = init.xavier_uniform_(
+                    m.weight.data, gain=nn.init.calculate_gain('relu'))
 
-#     def init_hidden(self, batch_size):
-#         if self.rnn_type == 'GRU':
-#             # h0
-#             return torch.zeros(self.num_layers, batch_size, self.hidden_size, device=self.device)
-#         elif self.rnn_type == 'LSTM':
-#             # (h0, c0)
-#             return (torch.zeros(self.num_layers, batch_size, self.hidden_size, device=self.device),
-#                     torch.zeros(self.num_layers, batch_size, self.hidden_size, device=self.device))
-    def reset(self, batch_size):
-        self.t = 0
-        self.input_ids = torch.zeros((batch_size, 256, 96)).cuda()
-        self.attention_mask = torch.zeros((batch_size, 256)).cuda()
-        self.decoder_input_ids = torch.zeros((batch_size, 256, 96)).cuda()
-        self.decoder_attention_mask = torch.zeros((batch_size, 256)).cuda()
-        self.decoder_attention_mask[:, 0] = 1
-        self.attention_mask[:, 0] = 1
-        
-        
+    def init_hidden(self, batch_size):
+        if self.rnn_type == 'GRU':
+            # h0
+            return torch.zeros(self.num_layers, batch_size, self.hidden_size, device=self.device)
+        elif self.rnn_type == 'LSTM':
+            # (h0, c0)
+            return (torch.zeros(self.num_layers, batch_size, self.hidden_size, device=self.device),
+                    torch.zeros(self.num_layers, batch_size, self.hidden_size, device=self.device))
+
     def forward(self, input, input_len=None):
-        attention_mask = torch.zeros(input.shape[:-1]).cuda()
-        attention_mask[:, 0] = 1
-        input = self.input(input.cuda())
+        input = self.input(input)
         # input = self.relu(input)
+
         if input_len is not None:
-            self.decoder_input_ids = self.decoder_input_ids[:, :input_len.max()+1]
-            self.decoder_attention_mask = self.decoder_attention_mask[:, :input_len.max()+1]
-            outputs = torch.zeros_like(self.decoder_input_ids).cuda()
-            attention_mask = torch.arange(input.shape[1]).view(1, -1).repeat(input.shape[0], 1).cuda() < input_len.unsqueeze(1)
-            encoder_outputs=None
-            past_key_values=None
-            for i in range(input_len.max()):
-#                 print(self.decoder_input_ids.shape, self.decoder_attention_mask.shape)
-                tmp_out = self.rnn(input_ids=input, attention_mask = attention_mask, decoder_input_ids=self.decoder_input_ids.detach()[:, :self.t+1], decoder_attention_mask = self.decoder_attention_mask[:, :input_len.max()], encoder_outputs = encoder_outputs, past_key_values=past_key_values, use_cache=True)
-                output = tmp_out['last_hidden_state']
-                past_key_values = tmp_out['past_key_values']
-                if encoder_outputs is None:
-                    encoder_outputs = (tmp_out['encoder_last_hidden_state'], )
-#                 print(output.shape, self.decoder_input_ids.shape)
-                self.decoder_input_ids[:, self.t+1] = output.squeeze(1).detach()
-                outputs[:, self.t+1] = output.squeeze(1)
-                self.decoder_attention_mask[:, self.t+1] = 1
-                self.t += 1
-            if self.output_size is not None:
-                outputs = self.output(outputs)
-            return outputs[:, 1:input_len.max()+1]
-        
-        
-        self.input_ids[:, self.t] = input
-        self.attention_mask[:, self.t] = 1
-        output = self.rnn(input_ids=self.input_ids, attention_mask = self.attention_mask, decoder_input_ids=self.decoder_input_ids, decoder_attention_mask = self.decoder_attention_mask, use_cache=True)['last_hidden_state']
-        self.decoder_input_ids[:, self.t+1] = output.squeeze(1).detach()
-        self.decoder_attention_mask[:, self.t+1] = 1
-        self.t += 1
-        
+            input = pack_padded_sequence(
+                input, input_len, batch_first=True, enforce_sorted=False)
+
+        output, self.hidden = self.rnn(input, self.hidden)
+
+        if input_len is not None:
+            output, _ = pad_packed_sequence(output, batch_first=True)
+
         if self.output_size is not None:
             output = self.output(output)
 
@@ -196,7 +163,7 @@ def create_model(args, feature_map):
         feature_len = 2 * (max_nodes + 1) + 2 * len_node_vec + len_edge_vec
     else:
         feature_len = 2 * (max_nodes + 1) + 2 * len_node_vec
-    print("feature len", feature_len)
+
     if args.loss_type == 'BCE':
         MLP_layer = MLP_Softmax
     elif args.loss_type == 'NLL':
