@@ -143,6 +143,9 @@ class RNN(nn.Module):
         self.decoder_attention_mask = torch.zeros((batch_size, 256)).cuda()
         self.decoder_attention_mask[:, 0] = 1
         self.attention_mask[:, 0] = 1
+        self.flag = False
+#         self.attention_mask[:, 1] = 1
+        self.past_key_values=None
         
         
     def forward(self, input, input_len=None):
@@ -172,19 +175,28 @@ class RNN(nn.Module):
             if self.output_size is not None:
                 outputs = self.output(outputs)
             return outputs[:, 1:input_len.max()+1]
+
+#         if self.t == 0:
+#             tmp_out = self.rnn(input_ids=self.input_ids, attention_mask = self.attention_mask, decoder_input_ids=self.decoder_input_ids, decoder_attention_mask = self.decoder_attention_mask, use_cache=False)
+#             output = tmp_out['last_hidden_state']
+#             self.decoder_input_ids[:, self.t] = output[:, self.t]
+#             self.decoder_attention_mask[:, self.t] = 1
         
-        
-        self.input_ids[:, self.t] = input
+        self.input_ids[:, self.t] = input.squeeze(1)
         self.attention_mask[:, self.t] = 1
-        output = self.rnn(input_ids=self.input_ids, attention_mask = self.attention_mask, decoder_input_ids=self.decoder_input_ids, decoder_attention_mask = self.decoder_attention_mask, use_cache=True)['last_hidden_state']
-        self.decoder_input_ids[:, self.t+1] = output.squeeze(1).detach()
-        self.decoder_attention_mask[:, self.t+1] = 1
+        tmp_out = self.rnn(input_ids=self.input_ids, attention_mask = self.attention_mask, decoder_input_ids=self.decoder_input_ids, decoder_attention_mask = self.decoder_attention_mask, use_cache=False)
+        output = tmp_out['last_hidden_state'][:, self.t+1]
+        
+        if self.t < self.decoder_input_ids.shape[1]:
+            self.decoder_input_ids[:, self.t+1] = output
+            self.decoder_attention_mask[:, self.t+1] = 1
         self.t += 1
+#         self.past_key_values = tmp_out['past_key_values']
         
         if self.output_size is not None:
             output = self.output(output)
-
-        return output
+#         print(output.max(), output.min(), self.t)
+        return output.unsqueeze(1)
 
 
 def create_model(args, feature_map):

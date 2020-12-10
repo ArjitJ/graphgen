@@ -20,7 +20,7 @@ class ArgsEvaluate():
         self.device = torch.device(
             'cuda:0' if torch.cuda.is_available() else 'cpu')
 
-        self.model_path = 'model_save/DFScodeRNN_ENZYMES_2020-12-09 20:22:40/DFScodeRNN_ENZYMES_20.dat'
+        self.model_path = 'model_save/DFScodeRNN_ENZYMES_2020-12-10 01:32:39/DFScodeRNN_ENZYMES_60.dat'
 
 
         self.num_epochs = get_model_attribute(
@@ -136,13 +136,13 @@ if __name__ == "__main__":
 
     print('Graphs generated - {}'.format(len(graphs_pred_indices)))
 
-    metrics.stats.novelity(
-        train_args.current_dataset_path, graphs_train_indices, eval_args.current_graphs_save_path,
-        graphs_pred_indices, train_args.temp_path, timeout=60)
+#     metrics.stats.novelity(
+#         train_args.current_dataset_path, graphs_train_indices, eval_args.current_graphs_save_path,
+#         graphs_pred_indices, train_args.temp_path, timeout=60)
 
-    metrics.stats.uniqueness(
-        eval_args.current_graphs_save_path,
-        graphs_pred_indices, train_args.temp_path, timeout=120)
+#     metrics.stats.uniqueness(
+#         eval_args.current_graphs_save_path,
+#         graphs_pred_indices, train_args.temp_path, timeout=120)
 
     # exit()
 

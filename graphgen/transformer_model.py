@@ -794,7 +794,6 @@ class BartModel(PretrainedBartModel):
 #             )
 #         else:
 #             decoder_padding_mask, causal_mask = None, None
-
         assert decoder_input_ids is not None
 
         if encoder_outputs is None:
