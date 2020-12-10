@@ -1,3 +1,22 @@
+# Graph Generation with Graph Generation using Transformed GraphGen
+
+We replace the LSTM used with BART and GPT2 for our project.
+
+Relevant files added by us or with major changes made by us:
+- `graphgen/transformer_models.py` which implements BART
+- `graphgen/model-bart.py` which implements GraphGen model based on BART
+- `graphgen/gpt2.py` which implements GPT2
+- `graphgen/model.py` which implements GraphGen model based on GPT2
+
+`model-Copy1.py` has the original LSTM based GraphGen model.
+
+Arjit Jain 170050010<br>
+Anshul Tomar 170070007<br>
+Soumya Chatterjee 170070010<br>
+
+---
+The rest of the README is from the GraphGen authors
+
 # GraphGen: A Scalable Approach to Domain-agnostic Labeled Graph Generation
 
 This repository is the official PyTorch implementation of GraphGen, a generative graph model using auto-regressive model.
